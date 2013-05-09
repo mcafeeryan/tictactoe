@@ -1,4 +1,4 @@
-import struct, string
+import struct, string, random
 
 class TicTacToeBoard:
 
@@ -14,6 +14,9 @@ class TicTacToeBoard:
         
     def play_square(self, col, row, val):
         self.board[col][row] = val
+
+    def unplay_square(self, col, row):
+        self.board[col][row] = 'N'
 
     def get_square(self, col, row):
         return self.board[col][row]
@@ -44,15 +47,128 @@ class TicTacToeBoard:
             return self.board[2][0]
         return 'N'
 
-def make_simple_cpu_move(board, cpuval):
-    for i in range(3):
-        for j in range(3):
-            if(board.get_square(i,j)=='N'):
-                board.play_square(i,j,cpuval)
-                return True
-    return False
+def possible_moves(board):
+    moves = []
+    for col in range(3):
+        for row in range(3):
+            if(board.get_square(col,row)=='N'):
+                moves.append([col,row])
+    return moves
 
-def evaluation(board)
+def minimax_decision(board,player):
+    maxi = -100
+    action = []
+    moves = possible_moves(board)
+    if player == 'X':
+        humanval = 'O'
+    else:
+        humanval = 'X'
+    for move in moves:
+        [col, row] = move
+        board.play_square(col,row,player)
+        val = min_val(board, humanval, -100, 100, player)
+        board.unplay_square(col,row)
+        if val >= maxi:
+            maxi = val
+            action = [col, row]
+    return action
+
+def max_val(board, player, alpha, beta, original):
+    moves = possible_moves(board)
+    winner = board.winner()
+    if (winner == 'N') and (board.full_board()):
+        return 0
+    elif winner == original:
+        return 1
+    elif winner != 'N':
+        return -1
+    value = -100
+    if player == 'X':
+        other = 'O'
+    else:
+        other = 'X'
+    for move in moves:
+        [col, row] = move
+        board.play_square(col, row, player)
+        value = max(value, min_val(board,other, alpha, beta,original))
+        board.unplay_square(col,row)
+        if value >= beta:
+            return value
+        alpha = max(alpha,value)
+    return value
+
+
+def min_val(board, player, alpha, beta, original):
+    moves = possible_moves(board)
+    winner = board.winner()
+    if (winner == 'N') and (board.full_board()):
+        return 0
+    elif winner == original:
+        return 1
+    elif winner != 'N':
+        return -1
+    value = 100
+    if player == 'X':
+        other = 'O'
+    else:
+        other = 'X'
+    for move in moves:
+        [col, row] = move
+        board.play_square(col, row, player)
+        value = min(value, max_val(board,other,alpha,beta,original))
+        board.unplay_square(col,row)
+        if value <= alpha:
+            return alpha
+        beta = min(beta,value)
+    return value
+
+def cpu_play(board, cpuval):
+    action = minimax_decision(board,cpuval)
+    [col, row] = action
+    board.play_square(col,row,cpuval)
+
+def evaluation(board,player):
+    #the idea is to see how many possibilities there are for the other player to win, and for you to win, and subtract them
+
+    possible_wins = 0
+    possible_loss = 0
+    score = 0
+    winner = board.winner()
+    if winner != 'N':
+        if winner == player:
+            return 1
+        else:
+            return -1
+
+    #check all possible wins/losses
+    #check the cols
+    for col in range(3):
+        if((board.get_square(col,0)==player or board.get_square(col,0) == 'N') and (board.get_square(col,1)==player or board.get_square(col,1) == 'N')
+         and (board.get_square(col,2)==player or board.get_square(col,2)=='N')):
+            possible_wins += 1
+        if(board.get_square(col,0)!=player and board.get_square(col,1) != player and board.get_square(col,2)!=player):
+            possible_loss += 1
+    #check the rows
+    for row in range(3):
+        if((board.get_square(0,row)==player or board.get_square(0,row)=='N') and (board.get_square(1,row)==player or board.get_square(1,row)=='N')
+         and (board.get_square(2,row)==player or board.get_square(2,row)=='N')):
+            possible_wins += 1
+        if(board.get_square(0,row)!=player and board.get_square(1,row) != player and board.get_square(2,row)!=player):
+            possible_loss += 1
+    #check diagonals
+    if((board.get_square(0,0)==player or board.get_square(0,0)=='N') and (board.get_square(1,1)==player or board.get_square(1,1)=='N')
+     and (board.get_square(2,2)==player or board.get_square(2,2)=='N')):
+        possible_wins += 1
+    if((board.get_square(0,2)==player or board.get_square(0,2)=='N') and (board.get_square(1,1)==player or board.get_square(1,1)=='N')
+     and (board.get_square(2,0)==player or board.get_square(2,0)=='N')):
+        possible_wins += 1
+    if(board.get_square(0,0)!=player and board.get_square(1,1)!=player and board.get_square(2,2)!=player):
+        possible_loss += 1
+    if(board.get_square(0,2)!=player and board.get_square(1,1)!=player and board.get_square(2,0)!=player):
+        possible_loss += 1
+
+    score = possible_wins - possible_loss
+    return score
 
 def play(cpuval):
     Board = TicTacToeBoard()
@@ -62,6 +178,11 @@ def play(cpuval):
         humanval = 'O'
     Board.PrintBoard()
     
+    if humanval != 'X':
+        print("CPU Move")
+        cpu_play(Board,cpuval)
+        Board.PrintBoard()
+
     while( Board.full_board()==False and Board.winner() == 'N'):
         print("your move, pick a row (0-2)")
         row = int(input())
@@ -78,7 +199,7 @@ def play(cpuval):
             else:
                 Board.PrintBoard()
                 print("CPU Move")
-                make_simple_cpu_move(Board,cpuval)
+                cpu_play(Board,cpuval)
                 Board.PrintBoard()
 
     Board.PrintBoard()
@@ -90,6 +211,8 @@ def play(cpuval):
         print("CPU Wins!")
 
 def main():
-    play()
+    print("Pick what the CPU will be playing as (type X or O)")
+    cpuval = str(input())
+    play(cpuval)
 
 main()
